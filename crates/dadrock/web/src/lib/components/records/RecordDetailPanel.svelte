@@ -505,7 +505,7 @@
     {:else}
       <DocumentPane
         data-record-rendered-pane
-        class={`record-markdown mt-4 rounded-md border border-border bg-bg p-6 ${
+        class={`rendered-markdown record-markdown mt-4 rounded-md border border-border bg-bg p-6 ${
           embedded ? 'min-h-0 flex-1 overflow-auto' : ''
         }`}
       >
@@ -528,12 +528,5 @@
     margin-bottom: 0.5rem;
     font-size: 1rem;
     font-weight: 650;
-  }
-
-  :global(.record-markdown blockquote) {
-    margin: 0.5rem 0;
-    border-left: 3px solid var(--color-border);
-    padding-left: 0.75rem;
-    color: var(--color-fg-muted);
   }
 </style>

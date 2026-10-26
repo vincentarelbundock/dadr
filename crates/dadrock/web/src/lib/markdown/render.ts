@@ -1,3 +1,6 @@
+import MarkdownIt from 'markdown-it';
+import type { PluginSimple } from 'markdown-it';
+
 export function stripFrontMatter(markdown: string): string {
   const normalized = markdown.replace(/\r\n/g, '\n');
   const lines = normalized.split('\n');
@@ -13,169 +16,50 @@ export function stripFrontMatter(markdown: string): string {
 }
 
 export function renderMarkdown(markdown: string): string {
-  return renderBlocks(markdown.split(/\r?\n/), 0);
-}
-
-// A blockquote line: up to three spaces of indentation, `>`, and one optional space.
-const QUOTE_MARKER = /^ {0,3}> ?/;
-const NESTED_QUOTE_MARKERS = /^(?: {0,3}> ?)*/;
-const HEADING = /^(#{1,3})\s+(.*)$/;
-const LIST_ITEM = /^\s*[-*]\s+(.*)$/;
-// Deeper `>` lines render as text, so hostile input cannot exhaust the stack.
-const MAX_QUOTE_DEPTH = 16;
-
-function renderBlocks(lines: string[], depth: number): string {
-  const html: string[] = [];
-  let paragraph: string[] = [];
-  let listOpen = false;
-  let codeOpen = false;
-  let codeLines: string[] = [];
-
-  const flushParagraph = () => {
-    if (!paragraph.length) return;
-    html.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`);
-    paragraph = [];
-  };
-
-  const closeList = () => {
-    if (!listOpen) return;
-    html.push('</ul>');
-    listOpen = false;
-  };
-
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index]!;
-    index += 1;
-
-    if (isFence(line)) {
-      if (codeOpen) {
-        html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
-        codeLines = [];
-        codeOpen = false;
-      } else {
-        flushParagraph();
-        closeList();
-        codeOpen = true;
-      }
-      continue;
-    }
-
-    if (codeOpen) {
-      codeLines.push(line);
-      continue;
-    }
-
-    if (!line.trim()) {
-      flushParagraph();
-      closeList();
-      continue;
-    }
-
-    if (depth < MAX_QUOTE_DEPTH && QUOTE_MARKER.test(line)) {
-      flushParagraph();
-      closeList();
-      const quote = collectBlockquote(lines, index - 1);
-      html.push(`<blockquote>${renderBlocks(quote.lines, depth + 1)}</blockquote>`);
-      index = quote.next;
-      continue;
-    }
-
-    const heading = line.match(HEADING);
-    if (heading) {
-      flushParagraph();
-      closeList();
-      const level = heading[1]!.length;
-      html.push(`<h${level}>${inlineMarkdown(heading[2]!)}</h${level}>`);
-      continue;
-    }
-
-    const item = line.match(LIST_ITEM);
-    if (item) {
-      flushParagraph();
-      if (!listOpen) {
-        html.push('<ul>');
-        listOpen = true;
-      }
-      html.push(`<li>${inlineMarkdown(item[1]!)}</li>`);
-      continue;
-    }
-
-    paragraph.push(line.trim());
-  }
-
-  flushParagraph();
-  closeList();
-  if (codeOpen) {
-    html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
-  }
-
-  return html.join('');
-}
-
-/**
- * Collects the blockquote that starts at `start`: every following `>` line with its marker
- * removed, plus lazy continuation lines (a line without `>` that continues an open paragraph).
- * A blank line, or any line that would start another block, ends the quote.
- */
-function collectBlockquote(lines: string[], start: number): { lines: string[]; next: number } {
-  const quoted: string[] = [];
-  let fenceOpen = false;
-  let index = start;
-
-  while (index < lines.length) {
-    const line = lines[index]!;
-    const marker = line.match(QUOTE_MARKER);
-    if (marker) {
-      const content = line.slice(marker[0].length);
-      if (isFence(content)) fenceOpen = !fenceOpen;
-      quoted.push(content);
-    } else if (!fenceOpen && continuesParagraph(quoted.at(-1)) && !startsBlock(line)) {
-      quoted.push(line);
-    } else {
-      break;
-    }
-    index += 1;
-  }
-
-  return { lines: quoted, next: index };
-}
-
-/** Whether a quoted line leaves a paragraph open, looking through nested `>` markers. */
-function continuesParagraph(line: string | undefined): boolean {
-  if (line === undefined) return false;
-  const content = line.replace(NESTED_QUOTE_MARKERS, '');
-  return Boolean(content.trim()) && !HEADING.test(content) && !isFence(content);
-}
-
-function startsBlock(line: string): boolean {
-  return !line.trim() || isFence(line) || HEADING.test(line) || LIST_ITEM.test(line);
-}
-
-function isFence(line: string): boolean {
-  return line.trim().startsWith('```');
+  return markdownIt.render(markdown);
 }
 
 // Only short-id and full-id targets are DADR record links; other wikilinks stay as text.
 const RECORD_LINK =
-  /\[\[\s*([0-9a-fA-F]{12}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*(?:\|([^\]]+))?\]\]/g;
+  /^\[\[\s*([0-9a-fA-F]{12}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*(?:\|([^\]]+))?\]\]/;
 
-function inlineMarkdown(text: string): string {
-  let escaped = escapeHtml(text);
-  escaped = escaped.replace(RECORD_LINK, (_, target: string, label: string) => {
+const recordLinks: PluginSimple = (md) => {
+  md.inline.ruler.before('link', 'record_link', (state, silent) => {
+    if (!state.src.startsWith('[[', state.pos)) return false;
+    const match = RECORD_LINK.exec(state.src.slice(state.pos));
+    if (!match) return false;
+    if (!silent) {
+      const token = state.push('record_link', 'button', 0);
+      token.meta = { target: match[1]!, label: match[2] };
+    }
+    state.pos += match[0].length;
+    return true;
+  });
+
+  md.renderer.rules.record_link = (tokens, index) => {
+    const { target, label } = tokens[index]!.meta as {
+      target: string;
+      label?: string;
+    };
     return `<button class="wikilink" type="button" data-wikilink="${escapeAttr(target)}">${escapeHtml(
       label || target,
     )}</button>`;
-  });
-  escaped = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label: string, url: string) => {
-    if (!isSafeLinkUrl(url)) {
-      return `[${label}](${url})`;
-    }
-    return `<a href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`;
-  });
-  escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
-  return escaped;
-}
+  };
+};
+
+// Raw HTML stays escaped, and links and images only render for safe URLs; anything
+// else stays literal text. GFM tables and strikethrough come with the default preset.
+const markdownIt = new MarkdownIt({
+  html: false,
+  linkify: false,
+  typographer: false,
+}).use(recordLinks);
+markdownIt.validateLink = isSafeLinkUrl;
+markdownIt.renderer.rules.link_open = (tokens, index, options, _env, self) => {
+  tokens[index]!.attrSet('target', '_blank');
+  tokens[index]!.attrSet('rel', 'noreferrer');
+  return self.renderToken(tokens, index, options);
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -208,7 +92,7 @@ function isSafeLinkUrl(url: string): boolean {
 
 function decodedSchemeCandidate(url: string): string {
   // eslint-disable-next-line no-control-regex -- Strip leading controls that can conceal an unsafe URL scheme.
-  let candidate = url.replace(/^[\u0000-\u0020\u007f]+/, '');
+  let candidate = url.replace(/^[\u0000- \u007f]+/, '');
   for (let i = 0; i < 3; i += 1) {
     try {
       const decoded = decodeURIComponent(candidate);
@@ -219,5 +103,5 @@ function decodedSchemeCandidate(url: string): string {
     }
   }
   // eslint-disable-next-line no-control-regex -- Strip decoded controls before checking URL scheme safety.
-  return candidate.replace(/[\u0000-\u0020\u007f]+/g, '');
+  return candidate.replace(/[\u0000- \u007f]+/g, '');
 }

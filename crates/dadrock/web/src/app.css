@@ -110,3 +110,91 @@
     color: var(--color-fg);
   }
 }
+
+/* Record bodies rendered by `$lib/markdown/render`. Panels set their own heading sizes. */
+@layer components {
+  .rendered-markdown :where(p, ul, ol, pre, blockquote, table) {
+    margin: 0.5rem 0;
+  }
+
+  .rendered-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .rendered-markdown :where(h3, h4, h5, h6) {
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+
+  .rendered-markdown :where(ul, ol) {
+    padding-left: 1.25rem;
+  }
+
+  .rendered-markdown ul {
+    list-style: disc;
+  }
+
+  .rendered-markdown ol {
+    list-style: decimal;
+  }
+
+  .rendered-markdown :where(li ul, li ol) {
+    margin: 0.125rem 0;
+  }
+
+  .rendered-markdown strong {
+    font-weight: 650;
+  }
+
+  .rendered-markdown blockquote {
+    border-left: 3px solid var(--color-border);
+    padding-left: 0.75rem;
+    color: var(--color-fg-muted);
+  }
+
+  .rendered-markdown code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+  }
+
+  .rendered-markdown pre {
+    overflow: auto;
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .rendered-markdown a {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+
+  .rendered-markdown table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+
+  .rendered-markdown :where(th, td) {
+    border: 1px solid var(--color-border);
+    padding: 0.25rem 0.625rem;
+    text-align: left;
+  }
+
+  .rendered-markdown th {
+    background: var(--color-surface);
+    font-weight: 600;
+  }
+
+  .rendered-markdown hr {
+    margin: 1rem 0;
+    border-color: var(--color-border);
+  }
+
+  .rendered-markdown img {
+    margin: 0.5rem 0;
+    border-radius: var(--radius);
+  }
+}

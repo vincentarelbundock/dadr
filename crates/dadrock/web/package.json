@@ -29,6 +29,7 @@
     "bits-ui": "^2.11.1",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.468.0",
+    "markdown-it": "^14.1.0",
     "tailwind-merge": "^2.6.0",
     "zod": "^3.25.76"
   },
@@ -41,6 +42,7 @@
     "@tailwindcss/vite": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/svelte": "^5.2.9",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.18.11",
     "@vitest/ui": "^2.1.9",
     "eslint": "^9.39.1",
